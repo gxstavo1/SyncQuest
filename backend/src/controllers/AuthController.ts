@@ -2,6 +2,7 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { Request, Response } from "express";
 import { prisma } from "../database/prisma";
+import { env } from "../config/env";
 
 export class AuthController {
   static async register(req: Request, res: Response) {
@@ -39,6 +40,10 @@ export class AuthController {
   static async login(req: Request, res: Response) {
     const { email, password } = req.body;
 
+    if (!email || !password) {
+      return res.status(400).json({ message: "Dados obrigatórios" });
+    }
+
     const user = await prisma.user.findUnique({
       where: { email },
     });
@@ -47,11 +52,16 @@ export class AuthController {
       return res.status(401).json({ message: "Credenciais inválidas" });
     }
 
-    const token = jwt.sign(
-      { userId: user.id }, //STRING (UUID)
-      process.env.JWT_SECRET as string,
-      { expiresIn: process.env.JWT_EXPIRES_IN || "7d" },
-    );
+    const passwordMatch = await bcrypt.compare(password, user.password);
+
+    if (!passwordMatch) {
+      return res.status(401).json({ message: "Credenciais inválidas" });
+    }
+
+    const token = jwt.sign({}, env.jwtSecret, {
+      subject: user.id, // 🔑 ESSENCIAL
+      expiresIn: "7d",
+    });
 
     return res.json({
       token,
