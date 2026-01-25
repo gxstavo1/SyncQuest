@@ -13,4 +13,7 @@ workspaceRoutes.get("/workspaces/:id", authMiddleware, WorkspaceController.getBy
 //rota para criar workspace
 workspaceRoutes.post("/workspaces", authMiddleware, WorkspaceController.create);
 
+//rota para deletar workspace
+workspaceRoutes.delete("/workspaces/:id", authMiddleware, WorkspaceController.delete);
+
 export default workspaceRoutes;

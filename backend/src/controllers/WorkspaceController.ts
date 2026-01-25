@@ -42,19 +42,59 @@ export class WorkspaceController {
 
   //cria workspace
   static async create(req: Request, res: Response) {
+    console.log("USER ID NO CREATE:", req.userId);
+
     const { name } = req.body;
 
     if (!name) {
       return res.status(400).json({ message: "Nome é obrigatório" });
     }
 
+    if (!req.userId) {
+      return res.status(401).json({ message: "Usuário não autenticado" });
+    }
+
     const workspace = await prisma.workspace.create({
       data: {
         name,
-        ownerId: req.userId, // vem do authmiddleware
+        owner: {
+          connect: {
+            id: req.userId,
+          },
+        },
       },
     });
 
     return res.status(201).json(workspace);
+  }
+
+  //deleta workspace
+  static async delete(req: Request, res: Response) {
+    const { id } = req.params;
+
+    if (typeof id !== "string") {
+      return res.status(400).json({ message: "Id inválido" });
+    }
+
+    if (!id) {
+      return res.status(400).json({ message: "Id não informado" });
+    }
+
+    const workspace = await prisma.workspace.findFirst({
+      where: {
+        id,
+        ownerId: req.userId,
+      },
+    });
+
+    if (!workspace) {
+      return res.status(404).json({ message: "Workspace não encontrado" });
+    }
+
+    await prisma.workspace.delete({
+      where: { id },
+    });
+
+    return res.status(204).send();
   }
 }
