@@ -1,100 +1,61 @@
-import { Request, Response } from "express";
-import { prisma } from "../database/prisma";
+import { Request, Response, NextFunction } from "express";
+import { WorkspaceService } from "../services/WorkspaceService";
 
 export class WorkspaceController {
-  //lista todos workspace do usuario
-  static async list(req: Request, res: Response) {
-    const workspace = await prisma.workspace.findMany({
-      where: {
-        ownerId: req.userId,
-      },
-      orderBy: {
-        createdAt: "desc",
-      },
-    });
-
-    return res.json(workspace);
+  static async list(req: Request, res: Response, next: NextFunction) {
+    try {
+      const workspaces = await WorkspaceService.list(req.userId);
+      return res.json(workspaces);
+    } catch (err) {
+      next(err);
+    }
   }
 
-  //lista workspace com id especifico
-  static async getById(req: Request, res: Response) {
-    const paramId = req.params.id;
-
-    if (!paramId || Array.isArray(paramId)) {
-      return res.status(400).json({ message: "Id inválido" });
+  static async getById(req: Request, res: Response, next: NextFunction) {
+    try {
+      const workspace = await WorkspaceService.getById(req.params.id, req.userId);
+      return res.json(workspace);
+    } catch (err) {
+      next(err);
     }
-
-    const id = paramId;
-
-    const workspace = await prisma.workspace.findFirst({
-      where: {
-        id,
-        ownerId: req.userId,
-      },
-    });
-
-    if (!workspace) {
-      return res.status(404).json({ message: "Workspace não encontrado" });
-    }
-
-    return res.json(workspace);
   }
 
-  //cria workspace
-  static async create(req: Request, res: Response) {
-    console.log("USER ID NO CREATE:", req.userId);
+  static async create(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { name } = req.body;
 
-    const { name } = req.body;
+      if (!name) {
+        return res.status(400).json({ message: "Nome é obrigatório" });
+      }
 
-    if (!name) {
-      return res.status(400).json({ message: "Nome é obrigatório" });
+      const workspace = await WorkspaceService.create(name, req.userId);
+      return res.status(201).json(workspace);
+    } catch (err) {
+      next(err);
     }
-
-    if (!req.userId) {
-      return res.status(401).json({ message: "Usuário não autenticado" });
-    }
-
-    const workspace = await prisma.workspace.create({
-      data: {
-        name,
-        owner: {
-          connect: {
-            id: req.userId,
-          },
-        },
-      },
-    });
-
-    return res.status(201).json(workspace);
   }
 
-  //deleta workspace
-  static async delete(req: Request, res: Response) {
-    const { id } = req.params;
+  static async update(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { name } = req.body;
 
-    if (typeof id !== "string") {
-      return res.status(400).json({ message: "Id inválido" });
+      if (!name) {
+        return res.status(400).json({ message: "Nome é obrigatório" });
+      }
+
+      const workspace = await WorkspaceService.update(req.params.id, name, req.userId);
+      return res.json(workspace);
+    } catch (err) {
+      next(err);
     }
+  }
 
-    if (!id) {
-      return res.status(400).json({ message: "Id não informado" });
+  static async delete(req: Request, res: Response, next: NextFunction) {
+    try {
+      await WorkspaceService.delete(req.params.id, req.userId);
+      return res.status(204).send();
+    } catch (err) {
+      next(err);
     }
-
-    const workspace = await prisma.workspace.findFirst({
-      where: {
-        id,
-        ownerId: req.userId,
-      },
-    });
-
-    if (!workspace) {
-      return res.status(404).json({ message: "Workspace não encontrado" });
-    }
-
-    await prisma.workspace.delete({
-      where: { id },
-    });
-
-    return res.status(204).send();
   }
 }

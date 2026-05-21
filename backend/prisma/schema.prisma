@@ -8,50 +8,69 @@ generator client {
 }
 
 model User {
-  id          String      @id @default(uuid())
-  name        String
-  email       String      @unique
-  password    String
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
+  id         String      @id @default(uuid())
+  name       String
+  email      String      @unique
+  password   String
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
 
-  workspaces  Workspace[]
+  workspaces Workspace[]
+  tasks      Task[]      @relation("TaskAssignee")
 }
 
 model Workspace {
-  id          String    @id @default(uuid())
-  name        String
-  ownerId     String
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  id        String   @id @default(uuid())
+  name      String
+  ownerId   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  owner       User      @relation(fields: [ownerId], references: [id])
-  boards      Board[]
+  owner  User    @relation(fields: [ownerId], references: [id])
+  boards Board[]
 }
 
 model Board {
-  id          String    @id @default(uuid())
+  id          String   @id @default(uuid())
   title       String
   workspaceId String
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  position    Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  workspace   Workspace @relation(fields: [workspaceId], references: [id])
-  tasks       Task[]
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  lists     List[]
+}
+
+model List {
+  id        String   @id @default(uuid())
+  title     String
+  boardId   String
+  position  Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  board Board  @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  tasks Task[]
 }
 
 model Task {
-  id          String      @id @default(uuid())
+  id          String    @id @default(uuid())
   title       String
   description String?
-  status      String
-  boardId     String
-  isArchived  Boolean     @default(false)
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
+  status      String    @default("open")
+  priority    String    @default("medium")
+  position    Int       @default(0)
+  dueDate     DateTime?
+  isArchived  Boolean   @default(false)
+  listId      String
+  assigneeId  String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
-  board       Board       @relation(fields: [boardId], references: [id])
-  tags        TaskTag[]
+  list     List     @relation(fields: [listId], references: [id], onDelete: Cascade)
+  assignee User?    @relation("TaskAssignee", fields: [assigneeId], references: [id])
+  tags     TaskTag[]
 }
 
 model Tag {
@@ -60,15 +79,15 @@ model Tag {
   color     String
   createdAt DateTime  @default(now())
 
-  tasks     TaskTag[]
+  tasks TaskTag[]
 }
 
 model TaskTag {
   taskId String
   tagId  String
 
-  task   Task @relation(fields: [taskId], references: [id])
-  tag    Tag  @relation(fields: [tagId], references: [id])
+  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  tag  Tag  @relation(fields: [tagId], references: [id], onDelete: Cascade)
 
   @@id([taskId, tagId])
 }

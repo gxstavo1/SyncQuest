@@ -9,25 +9,23 @@ export class AuthController {
     const { name, email, password } = req.body;
 
     if (!name || !email || !password) {
-      return res.status(400).json({ message: "Dados obrigatórios" });
+      return res.status(400).json({ message: "Nome, email e senha são obrigatórios" });
     }
 
-    const userExists = await prisma.user.findUnique({
-      where: { email },
-    });
+    if (password.length < 6) {
+      return res.status(400).json({ message: "Senha deve ter ao menos 6 caracteres" });
+    }
+
+    const userExists = await prisma.user.findUnique({ where: { email } });
 
     if (userExists) {
-      return res.status(409).json({ message: "Usuário já existe" });
+      return res.status(409).json({ message: "E-mail já cadastrado" });
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
     const user = await prisma.user.create({
-      data: {
-        name,
-        email,
-        password: hashedPassword,
-      },
+      data: { name, email, password: hashedPassword },
     });
 
     return res.status(201).json({
@@ -41,12 +39,10 @@ export class AuthController {
     const { email, password } = req.body;
 
     if (!email || !password) {
-      return res.status(400).json({ message: "Dados obrigatórios" });
+      return res.status(400).json({ message: "Email e senha são obrigatórios" });
     }
 
-    const user = await prisma.user.findUnique({
-      where: { email },
-    });
+    const user = await prisma.user.findUnique({ where: { email } });
 
     if (!user) {
       return res.status(401).json({ message: "Credenciais inválidas" });
@@ -59,7 +55,7 @@ export class AuthController {
     }
 
     const token = jwt.sign({}, env.jwtSecret, {
-      subject: user.id, // 🔑 ESSENCIAL
+      subject: user.id,
       expiresIn: "7d",
     });
 
@@ -71,5 +67,18 @@ export class AuthController {
         email: user.email,
       },
     });
+  }
+
+  static async me(req: Request, res: Response) {
+    const user = await prisma.user.findUnique({
+      where: { id: req.userId },
+      select: { id: true, name: true, email: true, createdAt: true },
+    });
+
+    if (!user) {
+      return res.status(404).json({ message: "Usuário não encontrado" });
+    }
+
+    return res.json(user);
   }
 }
